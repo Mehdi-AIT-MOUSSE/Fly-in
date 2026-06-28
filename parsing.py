@@ -66,7 +66,8 @@ class Parse:
         allowed_starts_words = ("nb_drones:", "start_hub:",
                                 "end_hub:", "hub:", "connection:")
 
-        for lineno, raw in lines:
+        for i, data in enumerate(lines):
+            lineno, raw = data
             if not raw.startswith(allowed_starts_words):
                 word = raw.split()[0]
                 raise ParseError(
@@ -74,6 +75,11 @@ class Parse:
                     "start_hub, end_hub, hub, "
                     "connection with ':' after it directly"
                 )
+
+            if "#" in raw:
+                idx = raw.index('#')
+                lines[i] = (lineno, raw[:idx].strip())
+
         return lines
 
     def get_nb_drones(self):
