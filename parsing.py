@@ -30,6 +30,7 @@ class Connection:
         return (f"Connection({self.zone1.name!r} <-> {self.zone2.name!r}, "
                 f"max_link_capacity={self.max_link_capacity})")
 
+
 class Parse:
     def __init__(self, path: str):
         self.path = path
