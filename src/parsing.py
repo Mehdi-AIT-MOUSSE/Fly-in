@@ -1,34 +1,8 @@
+from .models import Zone, Connection
+
+
 class ParseError(Exception):
     pass
-
-
-class Zone:
-    def __init__(self, name, x, y, metadata, is_start, is_end):
-        self.name = name
-        self.x = x
-        self.y = y
-        self.type = metadata['zone']
-        self.color = metadata['color']
-        self.max_drones = metadata['max_drones']
-        self.is_start = is_start
-        self.is_end = is_end
-
-    def __repr__(self):
-        tag = " [START]" if self.is_start else " [END]" if self.is_end else ""
-        return (f"Zone(name={self.name!r}, x={self.x}, y={self.y}, "
-                f"type={self.type!r}, color={self.color!r}, "
-                f"max_drones={self.max_drones}{tag})")
-
-
-class Connection:
-    def __init__(self, zone1, zone2, max_link_capacity=1):
-        self.zone1: Zone = zone1
-        self.zone2: Zone = zone2
-        self.max_link_capacity: int = max_link_capacity
-
-    def __repr__(self):
-        return (f"Connection({self.zone1.name!r} <-> {self.zone2.name!r}, "
-                f"max_link_capacity={self.max_link_capacity})")
 
 
 class Parse:
@@ -42,13 +16,16 @@ class Parse:
     def get_clean_lines(self):
         try:
             with open(self.path) as file:
-                # Now stores (line_number, content) tuples
                 lines = [
                     (i, s)
                     for i, line in enumerate(file, start=1)
                     if (s := " ".join(line.strip().split()))
                     and not s.startswith("#")
                 ]
+        except FileNotFoundError:
+            raise ParseError(f"File Not Found in path {self.path}")
+        except PermissionError:
+            raise ParseError("File Permission Error")
         except Exception:
             raise ParseError("Invalid file operation")
 
@@ -120,7 +97,7 @@ class Parse:
 
         metadata_dict = {
             'zone': 'normal',
-            'color': "yellow",
+            'color': "none",
             'max_drones': 1
         }
 
@@ -146,7 +123,10 @@ class Parse:
         if len(parts) > 3:
             allowed_metadata = {"zone", "max_drones", "color"}
             allowed_zones = {'normal', 'blocked', 'restricted', 'priority'}
-            allowed_colors = {"red", "blue", "green", "yellow"}
+            allowed_colors = {
+                "red", "blue", "green", "yellow", "orange", 'crimson', 'gold',
+                'magenta', 'darkred', 'lime', 'brown', 'cyan', 'violet',
+                'purple', 'maroon', 'black'}
 
             metadata = " ".join(parts[3:])
 
@@ -156,6 +136,11 @@ class Parse:
                     )
 
             metadata = metadata[1:-1]
+            if "[" in metadata or "]" in metadata:
+                raise ParseError(
+                    f"{loc}square brackets are not allow between the metadata"
+                    )
+
             metadata = metadata.split()
 
             keys = set()
@@ -187,10 +172,12 @@ class Parse:
                             f"{loc}Only normal, blocked, restricted or "
                             "priority zone types are allowed.")
                 else:
-                    if value not in allowed_colors:
+                    if "=" in value:
                         raise ParseError(
-                            f"{loc}Only red, blue, green and yellow"
-                            " colors are available.")
+                                    f"{loc}Unvalid color value")
+
+                    if value not in allowed_colors:
+                        value = "none"
 
                 metadata_dict[key] = value
 
@@ -205,7 +192,7 @@ class Parse:
                                 self.clean_lines))
 
         if (len(start_hub) == 0 or len(start_hub) > 1):
-            raise ParseError("One start_hub must be present.")
+            raise ParseError("line 1: One start_hub must be present.")
 
         end_hub = list(filter(lambda line: line[1].startswith("end_hub"),
                               self.clean_lines))
