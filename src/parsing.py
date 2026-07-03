@@ -1,4 +1,4 @@
-from models import Zone, Connection
+from .models import Zone, Connection
 
 
 class ParseError(Exception):
@@ -303,17 +303,3 @@ class Parse:
             self.connections.append(connection)
 
         return self.connections
-
-
-file_path = "maps/easy/01_linear_path.txt"
-
-try:
-    p = Parse(file_path)
-    zones = p.get_zones()
-    connections = p.get_connection()
-
-    for c in connections:
-        print(c)
-
-except ParseError as Error:
-    print(Error)
