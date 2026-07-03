@@ -1,4 +1,4 @@
-from .models import Zone, Connection
+from models import Zone, Connection
 
 
 class ParseError(Exception):
@@ -36,7 +36,8 @@ class Parse:
             (lineno,
              raw.replace('[ ', '[').replace(' ]', ']')
                 .replace(' =', '=').replace('= ', '=')
-                .replace(" :", ":"))
+                .replace(" :", ":").replace('"', '')
+                .replace("'", ""))
             for lineno, raw in lines
         ]
 
@@ -180,6 +181,9 @@ class Parse:
                         value = "none"
 
                 metadata_dict[key] = value
+
+        if is_start or is_end:
+            metadata_dict["max_drones"] = self.nb_drones
 
         z = Zone(name, x, y, metadata_dict, is_start, is_end)
         return z
