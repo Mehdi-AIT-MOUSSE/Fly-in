@@ -9,6 +9,15 @@ class Zone:
         self.max_drones = metadata['max_drones']
         self.is_start = is_start
         self.is_end = is_end
+        
+        self.cost = 1
+        if self.type == "restricted":
+            self.cost = 2
+        elif self.type == "restricted":
+            self.cost = 0.9
+
+    def is_blocked(self):
+        return self.type == 'blocked'
 
     def __repr__(self):
         tag = " [START]" if self.is_start else " [END]" if self.is_end else ""

@@ -176,6 +176,10 @@ class Parse:
                     if "=" in value:
                         raise ParseError(
                                     f"{loc}Unvalid color value")
+                    if any(c.isdigit() for c in value):
+                        raise ParseError(
+                                    f"{loc}Color should be valid single-word"
+                                    " strings without digits")
 
                     if value not in allowed_colors:
                         value = "none"
