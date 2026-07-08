@@ -1,8 +1,4 @@
-from .models import Zone, Connection
-
-
-class ParseError(Exception):
-    pass
+from .models import Zone, Connection, ParseError
 
 
 class Parse:

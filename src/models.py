@@ -1,3 +1,10 @@
+class ParseError(Exception):
+    pass
+
+
+class GraphError(Exception):
+    pass
+
 
 class Zone:
     def __init__(self, name, x, y, metadata, is_start, is_end):
@@ -9,7 +16,7 @@ class Zone:
         self.max_drones = metadata['max_drones']
         self.is_start = is_start
         self.is_end = is_end
-        
+
         self.cost = 1
         if self.type == "restricted":
             self.cost = 2

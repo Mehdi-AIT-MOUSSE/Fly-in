@@ -1,5 +1,6 @@
 
-from src.parsing import Parse, ParseError
+from src.models import ParseError, GraphError
+from src.parsing import Parse
 from src.graph import Graph
 
 
@@ -13,14 +14,18 @@ def main(path: str) -> None:
         exit()
 
     graph = Graph(zones, connections)
-    print(graph)
 
     start = next(z for z in zones.values() if z.is_start)
     end = next(z for z in zones.values() if z.is_end)
-    print(start)
-    print(end)
+
+    try:
+        paths = graph.shortest_paths(start, end)
+        for i, (dist, path) in enumerate(paths):
+            print(f"Path {i + 1}: {' -> '.join(path)} (Distance: {dist})")
+    except GraphError as error:
+        print(error)
 
 
 if __name__ == "__main__":
-    file_path = "maps/easy/01_linear_path.txt"
+    file_path = "maps/easy/02_simple_fork.txt"
     main(file_path)
