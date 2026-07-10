@@ -51,6 +51,21 @@ class Graph:
 
         return paths
 
+    def get_zone(self, zone_name: str) -> Zone:
+        if zone_name not in self.zones:
+            raise GraphError(
+                f"Zone '{zone_name}' does not exist in the graph.")
+        return self.zones[zone_name]
+
+    def get_connection(self, zone1_name: str, zone2_name: str) -> Connection:
+
+        for con in self.adj[zone1_name]:
+            zone, connection = con
+            if zone.name == zone2_name:
+                return connection
+        raise GraphError(
+            f"No connection found between '{zone1_name}' and '{zone2_name}'.")
+
     def __repr__(self):
         lines = ["Graph adjacency list:"]
 

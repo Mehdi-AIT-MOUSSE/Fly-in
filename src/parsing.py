@@ -185,7 +185,7 @@ class Parse:
         if is_start or is_end:
             metadata_dict["max_drones"] = self.nb_drones
 
-        z = Zone(name, x, y, metadata_dict, is_start, is_end)
+        z = Zone(name, x, y, metadata_dict, is_start, is_end, self.nb_drones)
         return z
 
     def get_zones(self):
