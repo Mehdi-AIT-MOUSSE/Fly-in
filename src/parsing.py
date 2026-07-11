@@ -250,6 +250,9 @@ class Parse:
                 raise ParseError(
                     f"Line {lineno}: Unknown zone in '{data}' connection")
 
+            if zone1 == zone2:
+                raise ParseError(f"Line {lineno}: The zone cannot be connected to itself.")
+
             comb1, comb2 = f"{zone1}-{zone2}", f"{zone2}-{zone1}"
             if comb1 in exist_comb or comb2 in exist_comb:
                 raise ParseError(
