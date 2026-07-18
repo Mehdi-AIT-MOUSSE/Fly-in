@@ -39,6 +39,8 @@ if __name__ == "__main__":
     # file_path = "maps/easy/02_simple_fork.txt"
     file_path = "maps/challenger/01_the_impossible_dream.txt"
     # file_path = "maps/medium/02_circular_loop.txt"
+    # file_path = "maps/easy/01_linear_path.txt"
+
     main(file_path)
 
 

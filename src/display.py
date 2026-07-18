@@ -4,45 +4,23 @@ from .similation import Simulation
 
 import arcade
 
-SPACING_X = 200        # pixel distance between grid columns
-SPACING_Y = 170         # pixel distance between grid rows
-MARGIN_X = 150          # left/right margin so edge zones aren't clipped
-MARGIN_Y = 150          # top/bottom margin (also leaves room for the HUD)
-ZONE_RADIUS = 46
-DRONE_RADIUS = 16
-LINE_WIDTH = 3
+SPACING_X = 200
+SPACING_Y = 270
+MARGIN_X = 50
+MARGIN_Y = 10
+ZONE_RADIUS = 60
+DRONE_RADIUS = 30
+LINE_WIDTH = 6
 BACK_GROUND_COLOR = arcade.color.BLACK
 
-# The window is a fixed, comfortable size -- independent of how large the map
-# is. Large maps (more zones than fit on screen at zoom 1.0) are explored with
-# the mouse wheel / keyboard zoom and pan controls added to DroneSimWindow below.
 WINDOW_WIDTH = 1000
 WINDOW_HEIGHT = 680
-HUD_HEIGHT = 60          # reserved band at the top of the screen for the HUD
+HUD_HEIGHT = 60
 
 MIN_ZOOM = 0.15
 MAX_ZOOM = 4.0
-ZOOM_STEP = 1.1          # multiplicative zoom per scroll notch / key press
-PAN_SPEED = 600.0        # world units per second, for keyboard panning
-
-TYPE_LABELS = {
-    "normal": "normal",
-    "restricted": "restricted (2-turn dwell)",
-    "priority": "priority (fast)",
-    "blocked": "blocked",
-}
-
-
-def resolve_color(color):
-    """Zone.color can be a named arcade color string ('GREEN') or an
-    already-resolved RGB(A) tuple -- support both."""
-    if isinstance(color, str):
-        resolved = getattr(arcade.color, color.upper(), None)
-        if resolved is not None:
-            return resolved
-        return arcade.color.GRAY
-    return color
-
+ZOOM_STEP = 1.1
+PAN_SPEED = 600.0
 
 class DroneSimWindow(arcade.Window):
     def __init__(self, graph: Graph, start: Zone, end: Zone, paths, nb_drones: int):
@@ -65,7 +43,6 @@ class DroneSimWindow(arcade.Window):
 
         self.keys_held = set()
         self._dragging = False
-        self.min_zoom = MIN_ZOOM
 
         self._reset_simulation()
         self._fit_view()
@@ -86,8 +63,16 @@ class DroneSimWindow(arcade.Window):
         self.last_turn_log = []
         self.finished = False
 
-    # ---- coordinate mapping -------------------------------------------------
+    # ---- coordinate mapping and color getter -------------------------------------------------
+    def get_color(self, zone_color):
+        """Zone.color can be a named arcade color string ('GREEN')"""
+        color = getattr(arcade.color, zone_color.upper(), None)
+        
+        if not color:
+            return arcade.color.GRAY
 
+        return color
+    
     def zone_screen_pos(self, zone: Zone):
         sx = MARGIN_X + zone.x * SPACING_X
         sy = MARGIN_Y + zone.y * SPACING_Y
@@ -120,33 +105,28 @@ class DroneSimWindow(arcade.Window):
         map_w = max(max_x - min_x, 1)
         map_h = max(max_y - min_y, 1)
 
-        # Leave room for the HUD band at the top of the window.
-        usable_h = max(self.height - HUD_HEIGHT, 1)
-        fit_zoom = min(self.width / map_w, usable_h / map_h)
-        fit_zoom = min(fit_zoom, MAX_ZOOM)
-        self.min_zoom = min(MIN_ZOOM, fit_zoom * 0.8)
+        multiplier_w = self.width / map_w
+        multiplier_h = self.height / map_h
 
-        self.camera.zoom = fit_zoom
-        # shift the vertical center down a touch so the HUD band doesn't
-        # cover the top of the map
+        self.camera.zoom = min(multiplier_w, multiplier_h)
+
         center_x = (min_x + max_x) / 2
-        center_y = (min_y + max_y) / 2 - (HUD_HEIGHT / 2) / fit_zoom
+        center_y = (min_y + max_y) / 2
         self.camera.position = (center_x, center_y)
 
-    def _zoom_camera(self, factor, anchor_screen):
-        """Zoom in/out by `factor`, keeping the world point under
-        `anchor_screen` (screen-space x, y) fixed in place."""
+    def _zoom_camera(self, factor):
         old_zoom = self.camera.zoom
-        new_zoom = min(MAX_ZOOM, max(self.min_zoom, old_zoom * factor))
+        new_zoom = old_zoom * factor
+
+        if new_zoom > MAX_ZOOM:
+            new_zoom = MAX_ZOOM
+        elif new_zoom < MIN_ZOOM:
+            new_zoom = MIN_ZOOM
+
         if new_zoom == old_zoom:
             return
 
-        before = self.camera.unproject(anchor_screen)
         self.camera.zoom = new_zoom
-        after = self.camera.unproject(anchor_screen)
-
-        px, py = self.camera.position
-        self.camera.position = (px + (before.x - after.x), py + (before.y - after.y))
 
     def _pan_camera(self, world_dx, world_dy):
         px, py = self.camera.position
@@ -192,14 +172,14 @@ class DroneSimWindow(arcade.Window):
     def _draw_zones(self):
         for zone in self.graph.zones.values():
             x, y = self.zone_screen_pos(zone)
-            zone_color = resolve_color(zone.color)
+            zone_color = self.get_color(zone.color)
             arcade.draw_circle_filled(x, y, ZONE_RADIUS, zone_color)
 
             if not zone.is_blocked():
                 outline_color = arcade.color.WHITE
             else:
                 outline_color = arcade.color.RED
-            outline_width = 4 if (zone.is_start or zone.is_end) else 2
+            outline_width = 6 if (zone.is_start or zone.is_end) else 4
             arcade.draw_circle_outline(x, y, ZONE_RADIUS,
                                        outline_color, outline_width)
 
@@ -235,7 +215,7 @@ class DroneSimWindow(arcade.Window):
 
             arcade.draw_text(
                 f"{zone.current_drones}/{zone.max_drones}", x, y, occ_color,
-                13, anchor_x="center", anchor_y="center", bold=True,
+                23, anchor_x="center", anchor_y="center", bold=True,
             )
 
     def _draw_drones(self):
@@ -287,14 +267,19 @@ class DroneSimWindow(arcade.Window):
                 self.turn_number += 1
                 self.last_turn_log = turn_log
                 self.finished = finished
+
         elif key == arcade.key.R:
             self._reset_simulation()
+
         elif key in (arcade.key.NUM_0, arcade.key.KEY_0):
             self._fit_view()
+
         elif key in (arcade.key.PLUS, arcade.key.NUM_ADD):
-            self._zoom_camera(ZOOM_STEP, (self.width / 2, self.height / 2))
+            self._zoom_camera(ZOOM_STEP)
+
         elif key in (arcade.key.MINUS, arcade.key.NUM_SUBTRACT):
-            self._zoom_camera(1 / ZOOM_STEP, (self.width / 2, self.height / 2))
+            self._zoom_camera(1 / ZOOM_STEP)
+
         elif key == arcade.key.ESCAPE:
             arcade.close_window()
 
@@ -336,6 +321,7 @@ class DroneSimWindow(arcade.Window):
         super().on_resize(width, height)
         self.camera.match_window(position=False)
         self.gui_camera.match_window(position=True)
+        self._fit_view()
 
 
 def run_display(graph, start, end, paths, nb_drones):
