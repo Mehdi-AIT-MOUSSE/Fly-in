@@ -3,8 +3,7 @@ from .graph import Graph
 
 
 class Simulation:
-    def __init__(self, graph: Graph, paths: list[(float, str)],
-                 nb_drones: int):
+    def __init__(self, graph: Graph, paths: list, nb_drones: int):
         self.graph = graph
         self.nb_drones = nb_drones
         self.paths = paths
@@ -26,64 +25,70 @@ class Simulation:
         self.drones.append(drone)
 
     def move_drone(self, drone, next_zone, connection):
-            drone.current_zone = next_zone
-            drone.x = next_zone.x
-            drone.y = next_zone.y
-            drone.paths_index += 1
+        drone.current_zone = next_zone
+        drone.x = next_zone.x
+        drone.y = next_zone.y
+        drone.paths_index += 1
 
+    def step_turn(self):
+        if self.check_simulation_finished():
+            return [], True
+
+        turn_log = []
+
+        for conn in self.graph.connections:
+            conn.current_drones = 0
+
+        for drone in self.drones:
+            current_zone = drone.current_zone
+            if current_zone.is_end:
+                continue
+
+            next_zone = self.graph.get_zone(drone.path[drone.paths_index])
+            connection: Connection = self.graph.get_connection(
+                                        current_zone.name, next_zone.name)
+            if drone.in_the_restricted_con:
+                drone.restricted_index += 1
+                if drone.restricted_index < 2:
+                    turn_log.append(f"D{drone.id}-{connection.name}")
+                    continue
+
+                drone.in_the_restricted_con = False
+                drone.restricted_index = 0
+
+                self.move_drone(drone, next_zone, connection)
+
+                if drone.current_zone.is_end:
+                    drone.finished = True
+                turn_log.append(f"D{drone.id}-{next_zone.name}")
+                continue
+
+            if (next_zone.zone_has_capacity()
+                    and connection.con_has_capacity()):
+                current_zone.zone_decrement_drones()
+                next_zone.zone_increment_drones()
+                connection.con_increment_drones()
+
+                if next_zone.type == 'restricted':
+                    drone.in_the_restricted_con = True
+                    drone.restricted_index = 1
+                    turn_log.append(f"D{drone.id}-{connection.name}")
+                    continue
+
+                self.move_drone(drone, next_zone, connection)
+
+                if drone.current_zone.is_end:
+                    drone.finished = True
+                turn_log.append(f"D{drone.id}-{next_zone.name}")
+
+        return turn_log, self.check_simulation_finished()
 
     def run(self):
+        """Console-mode run, kept for backwards compatibility."""
         turn = 1
         while not self.check_simulation_finished():
-            turn_log = []
-            
-            for conn in self.graph.connections :
-                conn.current_drones = 0
-
-            for drone in self.drones:
-                current_zone = drone.current_zone
-                if current_zone.is_end:
-                    continue
-
-                next_zone = self.graph.get_zone(drone.path[drone.paths_index])
-                connection: Connection = self.graph.get_connection(
-                                            current_zone.name, next_zone.name)
-                if drone.in_the_restricted_con:
-                    drone.restricted_index += 1
-                    if drone.restricted_index < 2:
-                        turn_log.append(f"D{drone.id}-{connection.name}")
-                        continue
-
-                    drone.in_the_restricted_con = False
-                    drone.restricted_index = 0
-
-                    self.move_drone(drone, next_zone, connection)
-
-                    if drone.current_zone.is_end:
-                        drone.finished = True
-                    turn_log.append(f"D{drone.id}-{next_zone.name}")
-                    continue
-
-                if (next_zone.zone_has_capacity()
-                        and connection.con_has_capacity()):
-                    current_zone.zone_decrement_drones()
-                    next_zone.zone_increment_drones()
-                    connection.con_increment_drones()
-
-                    if next_zone.type == 'restricted':
-                        drone.in_the_restricted_con = True
-                        drone.restricted_index = 1
-                        turn_log.append(f"D{drone.id}-{connection.name}")
-                        continue
-
-                    self.move_drone(drone, next_zone, connection)
-
-                    if drone.current_zone.is_end:
-                        drone.finished = True
-                    turn_log.append(f"D{drone.id}-{next_zone.name}")
-
-
-
+            turn_log, _finished = self.step_turn()
+            print(f"Turn {turn}: ", end="")
             if turn_log:
                 print(" ".join(turn_log))
 
