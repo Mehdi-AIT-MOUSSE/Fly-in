@@ -1,0 +1,21 @@
+[project]
+name = "fly-in"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "arcade>=3.3.3",
+    "flake8>=7.3.0",
+    "mypy>=2.3.0",
+]
+
+[tool.mypy]
+python_version = "3.14"
+explicit_package_bases = true
+mypy_path = "."
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+module = "arcade.*"
+ignore_missing_imports = true
