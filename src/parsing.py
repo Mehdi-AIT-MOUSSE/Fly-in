@@ -1,15 +1,21 @@
+"""Map file parser for drone simulation configuration."""
+
 from .models import Zone, Connection, ParseError
 
 
 class Parse:
-    def __init__(self, path: str):
+    """Parses a map file into zones, connections, and drone count."""
+
+    def __init__(self, path: str) -> None:
+        """Load and validate the map file at the given path."""
         self.path = path
         self.clean_lines = self.get_clean_lines()
         self.nb_drones: int = self.get_nb_drones()
-        self.zones: dict[str:Zone] = dict()
+        self.zones: dict[str, Zone] = dict()
         self.connections: list[Connection] = []
 
-    def get_clean_lines(self):
+    def get_clean_lines(self) -> list[tuple[int, str]]:
+        """Read the file and return non-empty, non-comment lines."""
         try:
             with open(self.path) as file:
                 lines = [
@@ -56,7 +62,8 @@ class Parse:
 
         return lines
 
-    def get_nb_drones(self):
+    def get_nb_drones(self) -> int:
+        """Parse and return the number of drones from the first line."""
         lineno, raw = self.clean_lines[0]
         nbs = list(filter(lambda line: line[1].startswith("nb_drones"),
                           self.clean_lines))
@@ -81,8 +88,16 @@ class Parse:
             raise ParseError(
                 f"Line {lineno}: The first line must be nb_drones")
 
-    def verify_hub(self, line, is_start,
-                   is_end, lineno=None, names=set(), cords=set()):
+    def verify_hub(
+        self,
+        line: str,
+        is_start: bool,
+        is_end: bool,
+        lineno: int | None = None,
+        names: set[str] = set(),
+        cords: set[tuple[int, int]] = set(),
+    ) -> Zone:
+        """Validate and build a zone from a hub line."""
         loc = f"Line {lineno}: " if lineno is not None else ""
 
         parts = line.split()
@@ -92,13 +107,13 @@ class Parse:
 
         data = parts[0:3]
 
-        metadata_dict = {
+        metadata_dict: dict[str, str | int] = {
             'zone': 'normal',
             'color': "none",
             'max_drones': 1
         }
 
-        name, x, y = data
+        name, x_raw, y_raw = data
         if '-' in name:
             raise ParseError(
                 f"{loc}Dashes and Spaces are forbidden in zone names.")
@@ -108,7 +123,7 @@ class Parse:
         names.add(name)
 
         try:
-            x, y = int(x), int(y)
+            x, y = int(x_raw), int(y_raw)
         except ValueError:
             raise ParseError(
                 f"{loc}Each zone must have valid integer coordinates.")
@@ -138,10 +153,10 @@ class Parse:
                     f"{loc}square brackets are not allow between the metadata"
                     )
 
-            metadata = metadata.split()
+            metadata_entries = metadata.split()
 
             keys = set()
-            for meta in metadata:
+            for meta in metadata_entries:
                 if '=' not in meta:
                     raise ParseError(f"{loc}Each metadata element"
                                      " must be in the key=value format")
@@ -154,10 +169,11 @@ class Parse:
                     raise ParseError(f"{loc}Don't duplicate the metadata.")
                 keys.add(key)
 
+                dict_value: str | int = value
                 if key == "max_drones":
                     try:
-                        value = int(value)
-                        if value <= 0:
+                        dict_value = int(value)
+                        if dict_value <= 0:
                             raise ValueError()
                     except ValueError:
                         raise ParseError(
@@ -178,9 +194,9 @@ class Parse:
                                     " strings without digits")
 
                     if value not in allowed_colors:
-                        value = "none"
+                        dict_value = "none"
 
-                metadata_dict[key] = value
+                metadata_dict[key] = dict_value
 
         if is_start or is_end:
             metadata_dict["max_drones"] = self.nb_drones
@@ -188,7 +204,8 @@ class Parse:
         z = Zone(name, x, y, metadata_dict, is_start, is_end, self.nb_drones)
         return z
 
-    def get_zones(self):
+    def get_zones(self) -> dict[str, Zone]:
+        """Parse all hub lines and return the zone dictionary."""
         hub_lines = list(filter(lambda line: line[1].startswith("hub"),
                                 self.clean_lines))
 
@@ -221,7 +238,8 @@ class Parse:
 
         return self.zones
 
-    def get_connection(self):
+    def get_connection(self) -> list[Connection]:
+        """Parse all connection lines and return the connection list."""
         connections = list(filter(lambda t: t[1].startswith("connection"),
                                   self.clean_lines))
 
@@ -231,14 +249,14 @@ class Parse:
             max_link_capacity = 1
 
             line = raw.split(":", 1)[1]
-            line = line.split()
+            tokens = line.split()
 
-            if len(line) == 0:
+            if len(tokens) == 0:
                 raise ParseError(
                     f"Line {lineno}: Empty connection, follow this format:"
                     " connection: <zone1>-<zone2> [metadata]")
 
-            data = line[0]
+            data = tokens[0]
             if "-" not in data:
                 raise ParseError(
                     f"Line {lineno}: The connection must have '-' between"
@@ -251,7 +269,8 @@ class Parse:
                     f"Line {lineno}: Unknown zone in '{data}' connection")
 
             if zone1 == zone2:
-                raise ParseError(f"Line {lineno}: The zone cannot be connected to itself.")
+                raise ParseError(
+                    f"Line {lineno}: The zone cannot be connected to itself.")
 
             comb1, comb2 = f"{zone1}-{zone2}", f"{zone2}-{zone1}"
             if comb1 in exist_comb or comb2 in exist_comb:
@@ -261,22 +280,22 @@ class Parse:
             exist_comb.add(comb1)
             exist_comb.add(comb2)
 
-            if len(line) > 1:
-                metadata = " ".join(line[1:])
+            if len(tokens) > 1:
+                metadata = " ".join(tokens[1:])
                 if not (metadata.startswith('[') and metadata.endswith(']')):
                     raise ParseError(
                         f"Line {lineno}: Metadata must be written between "
                         "square brackets []")
 
-                metadata = metadata[1:-1].split()
+                metadata_entries = metadata[1:-1].split()
 
-                if len(metadata) > 1:
+                if len(metadata_entries) > 1:
                     raise ParseError(
                         f"Line {lineno}: Connection metadata only supports"
                         " one max_link_capacity (max_link_capacity=int).")
 
-                if (len(metadata) == 1):
-                    metadata = metadata[0]
+                if (len(metadata_entries) == 1):
+                    metadata = metadata_entries[0]
                     if "=" not in metadata:
                         raise ParseError(
                             f"Line {lineno}: Metadata must be in the "
@@ -289,20 +308,20 @@ class Parse:
                             "only max_link_capacity (max_link_capacity=int).")
 
                     try:
-                        value = int(value)
-                        if value <= 0:
+                        parsed_capacity = int(value)
+                        if parsed_capacity <= 0:
                             raise ValueError()
                     except ValueError:
                         raise ParseError(
                             f"Line {lineno}: max_link_capacity must be "
                             "a positive integer.")
 
-                    max_link_capacity = value
+                    max_link_capacity = parsed_capacity
 
-            zone1: Zone = self.zones[zone1]
-            zone2: Zone = self.zones[zone2]
+            from_zone: Zone = self.zones[zone1]
+            to_zone: Zone = self.zones[zone2]
 
-            connection = Connection(zone1, zone2, max_link_capacity)
+            connection = Connection(from_zone, to_zone, max_link_capacity)
             self.connections.append(connection)
 
         return self.connections

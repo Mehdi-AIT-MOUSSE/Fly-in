@@ -1,5 +1,9 @@
+"""Arcade window for visualizing the drone simulation."""
 
-from .graph import Graph, Zone, Connection
+from typing import cast
+
+from .graph import Graph
+from .models import Zone, Connection
 from .similation import Simulation
 
 import arcade
@@ -22,9 +26,23 @@ MAX_ZOOM = 4.0
 ZOOM_STEP = 1.1
 PAN_SPEED = 600.0
 
+
 class DroneSimWindow(arcade.Window):
-    def __init__(self, graph: Graph, start: Zone, end: Zone, paths, nb_drones: int):
-        super().__init__(WINDOW_WIDTH, WINDOW_HEIGHT, "Drone Fleet Simulation", resizable=True)
+    """Arcade window that renders and controls the drone simulation."""
+
+    def __init__(
+        self,
+        graph: Graph,
+        start: Zone,
+        end: Zone,
+        paths: list[tuple[float, list[str]]],
+        nb_drones: int,
+    ) -> None:
+        """Initialize the simulation window and fit the map in view."""
+        super().__init__(
+            WINDOW_WIDTH, WINDOW_HEIGHT, "Drone Fleet Simulation",
+            resizable=True,
+        )
         arcade.set_background_color(BACK_GROUND_COLOR)
 
         self.graph = graph
@@ -33,27 +51,30 @@ class DroneSimWindow(arcade.Window):
         self.paths = paths
         self.nb_drones = nb_drones
 
-        self.simulation = None
+        self.simulation: Simulation | None = None
         self.turn_number = 0
-        self.last_turn_log = []
+        self.last_turn_log: list[str] = []
         self.finished = False
 
         self.camera = arcade.Camera2D()
         self.gui_camera = arcade.Camera2D()
 
-        self.keys_held = set()
+        self.keys_held: set[int] = set()
         self._dragging = False
 
         self._reset_simulation()
         self._fit_view()
 
-    def _reset_simulation(self):
+    def _reset_simulation(self) -> None:
+        """Reset zone counts and recreate the simulation."""
         for zone in self.graph.zones.values():
             zone.current_drones = self.nb_drones if zone.is_start else 0
         for conn in self.graph.connections:
             conn.current_drones = 0
 
-        self.simulation = Simulation(self.graph, self.paths, nb_drones=self.nb_drones)
+        self.simulation = Simulation(
+            self.graph, self.paths, nb_drones=self.nb_drones,
+        )
 
         self.simulation.creat_drones(start_zone=self.start)
 
@@ -61,26 +82,31 @@ class DroneSimWindow(arcade.Window):
         self.last_turn_log = []
         self.finished = False
 
-    def get_color(self, zone_color):
-        """Zone.color can be a named arcade color string ('GREEN')"""
+    def get_color(self, zone_color: str) -> tuple[int, int, int]:
+        """Zone.color can be a named arcade color string ('GREEN')."""
         color = getattr(arcade.color, zone_color.upper(), None)
-        
-        if not color:
-            return arcade.color.GRAY
 
-        return color
-    
-    def zone_screen_pos(self, zone: Zone):
+        if not color:
+            return cast(tuple[int, int, int], arcade.color.GRAY)
+
+        return cast(tuple[int, int, int], color)
+
+    def zone_screen_pos(self, zone: Zone) -> tuple[float, float]:
+        """Return screen coordinates for a zone."""
         sx = MARGIN_X + zone.x * SPACING_X
         sy = MARGIN_Y + zone.y * SPACING_Y
         return sx, sy
 
-    def connection_midpoint(self, connection: Connection):
+    def connection_midpoint(
+        self,
+        connection: Connection,
+    ) -> tuple[float, float]:
+        """Return the screen midpoint of a connection."""
         x1, y1 = self.zone_screen_pos(connection.zone1)
         x2, y2 = self.zone_screen_pos(connection.zone2)
         return (x1 + x2) / 2, (y1 + y2) / 2
 
-    def _map_bounds(self):
+    def _map_bounds(self) -> tuple[float, float, float, float]:
         """World-space bounding box that encloses every zone (plus padding
         for their radius/labels), used to fit the whole map -- start to
         end -- in view."""
@@ -94,7 +120,7 @@ class DroneSimWindow(arcade.Window):
         min_y, max_y = min(ys) - pad, max(ys) + pad
         return min_x, max_x, min_y, max_y
 
-    def _fit_view(self):
+    def _fit_view(self) -> None:
         """Reset the camera to show the entire map (start to end) at once."""
         min_x, max_x, min_y, max_y = self._map_bounds()
         map_w = max(max_x - min_x, 1)
@@ -109,7 +135,8 @@ class DroneSimWindow(arcade.Window):
         center_y = (min_y + max_y) / 2
         self.camera.position = (center_x, center_y)
 
-    def _zoom_camera(self, factor):
+    def _zoom_camera(self, factor: float) -> None:
+        """Zoom the camera in or out by the given factor."""
         old_zoom = self.camera.zoom
         new_zoom = old_zoom * factor
 
@@ -123,11 +150,13 @@ class DroneSimWindow(arcade.Window):
 
         self.camera.zoom = new_zoom
 
-    def _pan_camera(self, world_dx, world_dy):
+    def _pan_camera(self, world_dx: float, world_dy: float) -> None:
+        """Pan the camera by the given world-space offset."""
         px, py = self.camera.position
         self.camera.position = (px - world_dx, py - world_dy)
 
-    def on_draw(self):
+    def on_draw(self) -> None:
+        """Draw the map, drones, and HUD."""
         self.clear()
 
         self.camera.use()
@@ -138,19 +167,22 @@ class DroneSimWindow(arcade.Window):
         self.gui_camera.use()
         self._draw_hud()
 
-    def _draw_connections(self):
+    def _draw_connections(self) -> None:
+        """Draw connections and their capacity labels."""
         for conn in self.graph.connections:
             x1, y1 = self.zone_screen_pos(conn.zone1)
             x2, y2 = self.zone_screen_pos(conn.zone2)
 
             full = not conn.con_has_capacity()
-            line_color = arcade.color.GREEN if full else arcade.color.LIGHT_GRAY
+            line_color = (
+                arcade.color.GREEN if full else arcade.color.LIGHT_GRAY
+            )
             arcade.draw_line(x1, y1, x2, y2, line_color, LINE_WIDTH)
 
             mx, my = (x1 + x2) / 2, (y1 + y2) / 2
             label = f"{conn.current_drones}/{conn.max_link_capacity}"
 
-            # small background chip so the capacity label is readable over the line
+            # small background chip so the capacity label is readable
             arcade.draw_lrbt_rectangle_filled(
                 mx - 22, mx + 22, my - 11, my + 11, arcade.color.BLACK
             )
@@ -162,7 +194,8 @@ class DroneSimWindow(arcade.Window):
                 anchor_x="center", anchor_y="center", bold=True
             )
 
-    def _draw_zones(self):
+    def _draw_zones(self) -> None:
+        """Draw zones with labels and occupancy counts."""
         for zone in self.graph.zones.values():
             x, y = self.zone_screen_pos(zone)
             zone_color = self.get_color(zone.color)
@@ -211,9 +244,12 @@ class DroneSimWindow(arcade.Window):
                 23, anchor_x="center", anchor_y="center", bold=True,
             )
 
-    def _draw_drones(self):
+    def _draw_drones(self) -> None:
+        """Draw all active drones on the map."""
+        assert self.simulation is not None
         for drone in self.simulation.drones:
             if drone.in_the_restricted_con:
+                assert drone.path is not None
                 next_zone = self.graph.get_zone(drone.path[drone.paths_index])
                 conn = self.graph.get_connection(drone.current_zone.name,
                                                  next_zone.name)
@@ -227,7 +263,8 @@ class DroneSimWindow(arcade.Window):
             arcade.draw_text(str(drone.id), dx, dy, arcade.color.WHITE, 9,
                              anchor_x="center", anchor_y="center", bold=True)
 
-    def _draw_hud(self):
+    def _draw_hud(self) -> None:
+        """Draw the status bar and control hints."""
         arcade.draw_lrbt_rectangle_filled(
             0, self.width, self.height - HUD_HEIGHT, self.height, (0, 0, 0,
                                                                    180)
@@ -248,11 +285,13 @@ class DroneSimWindow(arcade.Window):
             14, top - 42, arcade.color.LIGHT_GRAY, 12, anchor_y="top",
         )
 
-    def on_key_press(self, key, modifiers):
+    def on_key_press(self, key: int, modifiers: int) -> None:
+        """Handle keyboard input for simulation control."""
         self.keys_held.add(key)
 
         if key == arcade.key.SPACE:
             if not self.finished:
+                assert self.simulation is not None
                 turn_log, finished = self.simulation.step_turn()
                 print(f"Turn {self.turn_number + 1}: {' '.join(turn_log)}")
                 self.turn_number += 1
@@ -274,10 +313,12 @@ class DroneSimWindow(arcade.Window):
         elif key == arcade.key.ESCAPE:
             arcade.close_window()
 
-    def on_key_release(self, key, modifiers):
+    def on_key_release(self, key: int, modifiers: int) -> None:
+        """Track released keys for continuous panning."""
         self.keys_held.discard(key)
 
-    def on_update(self, delta_time: float):
+    def on_update(self, delta_time: float) -> None:
+        """Update camera position while arrow keys are held."""
         dx = dy = 0.0
         if arcade.key.LEFT in self.keys_held:
             dx -= 1
@@ -292,22 +333,44 @@ class DroneSimWindow(arcade.Window):
             step = PAN_SPEED * delta_time / self.camera.zoom
             self._pan_camera(-dx * step, -dy * step)
 
-    def on_mouse_press(self, x, y, button, modifiers):
+    def on_mouse_press(
+        self,
+        x: float,
+        y: float,
+        button: int,
+        modifiers: int,
+    ) -> None:
+        """Start panning when the left mouse button is pressed."""
         if button == arcade.MOUSE_BUTTON_LEFT:
             self._dragging = True
 
-    def on_mouse_release(self, x, y, button, modifiers):
+    def on_mouse_release(
+        self,
+        x: float,
+        y: float,
+        button: int,
+        modifiers: int,
+    ) -> None:
+        """Stop panning when the left mouse button is released."""
         if button == arcade.MOUSE_BUTTON_LEFT:
             self._dragging = False
 
-    def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+    def on_mouse_drag(
+        self,
+        x: float,
+        y: float,
+        dx: float,
+        dy: float,
+        buttons: int,
+        modifiers: int,
+    ) -> None:
+        """Pan the camera while dragging with the mouse."""
         if self._dragging:
             self._pan_camera(dx, dy)
 
-    def on_resize(self, width, height):
+    def on_resize(self, width: int, height: int) -> None:
+        """Refit cameras and view when the window is resized."""
         super().on_resize(width, height)
         self.camera.match_window(position=False)
         self.gui_camera.match_window(position=True)
         self._fit_view()
-
-

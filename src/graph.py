@@ -1,9 +1,18 @@
+"""Graph structure and shortest-path search."""
+
 from .models import Zone, Connection, GraphError
 import heapq
 
 
 class Graph:
-    def __init__(self, zones: dict[str, Zone], connections: list[Connection]):
+    """Zone graph with adjacency list and pathfinding."""
+
+    def __init__(
+        self,
+        zones: dict[str, Zone],
+        connections: list[Connection],
+    ) -> None:
+        """Build adjacency lists from zones and connections."""
         self.zones: dict[str, Zone] = zones
         self.connections: list[Connection] = connections
 
@@ -15,12 +24,19 @@ class Graph:
             self.adj[con.zone1.name].append((con.zone2, con))
             self.adj[con.zone2.name].append((con.zone1, con))
 
-    def shortest_paths(self, start: Zone, end: Zone, K: int = 4):
-
+    def shortest_paths(
+        self,
+        start: Zone,
+        end: Zone,
+        K: int = 4,
+    ) -> list[tuple[float, list[str]]]:
+        """Return up to K shortest paths from start to end."""
         path = [start.name]
-        priority_queue = [(0, start.name, path)]
+        priority_queue: list[tuple[float, str, list[str]]] = [
+            (0, start.name, path),
+        ]
 
-        paths = []
+        paths: list[tuple[float, list[str]]] = []
 
         while priority_queue:
             current_dist, current_name, current_path = heapq.heappop(
@@ -52,13 +68,14 @@ class Graph:
         return paths
 
     def get_zone(self, zone_name: str) -> Zone:
+        """Return the zone with the given name."""
         if zone_name not in self.zones:
             raise GraphError(
                 f"Zone '{zone_name}' does not exist in the graph.")
         return self.zones[zone_name]
 
     def get_connection(self, zone1_name: str, zone2_name: str) -> Connection:
-
+        """Return the connection between two named zones."""
         for con in self.adj[zone1_name]:
             zone, connection = con
             if zone.name == zone2_name:
@@ -66,7 +83,8 @@ class Graph:
         raise GraphError(
             f"No connection found between '{zone1_name}' and '{zone2_name}'.")
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        """Return a readable adjacency-list representation."""
         lines = ["Graph adjacency list:"]
 
         for zone_name, neighbors in self.adj.items():
