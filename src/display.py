@@ -47,8 +47,6 @@ class DroneSimWindow(arcade.Window):
         self._reset_simulation()
         self._fit_view()
 
-    # ---- setup / reset -----------------------------------------------------
-
     def _reset_simulation(self):
         for zone in self.graph.zones.values():
             zone.current_drones = self.nb_drones if zone.is_start else 0
@@ -63,7 +61,6 @@ class DroneSimWindow(arcade.Window):
         self.last_turn_log = []
         self.finished = False
 
-    # ---- coordinate mapping and color getter -------------------------------------------------
     def get_color(self, zone_color):
         """Zone.color can be a named arcade color string ('GREEN')"""
         color = getattr(arcade.color, zone_color.upper(), None)
@@ -82,8 +79,6 @@ class DroneSimWindow(arcade.Window):
         x1, y1 = self.zone_screen_pos(connection.zone1)
         x2, y2 = self.zone_screen_pos(connection.zone2)
         return (x1 + x2) / 2, (y1 + y2) / 2
-
-    # ---- camera: fit / zoom / pan -------------------------------------------
 
     def _map_bounds(self):
         """World-space bounding box that encloses every zone (plus padding
@@ -131,8 +126,6 @@ class DroneSimWindow(arcade.Window):
     def _pan_camera(self, world_dx, world_dy):
         px, py = self.camera.position
         self.camera.position = (px - world_dx, py - world_dy)
-
-    # ---- drawing --------------------------------------------------------
 
     def on_draw(self):
         self.clear()
@@ -255,8 +248,6 @@ class DroneSimWindow(arcade.Window):
             14, top - 42, arcade.color.LIGHT_GRAY, 12, anchor_y="top",
         )
 
-    # ---- input: keyboard ------------------------------------------------
-
     def on_key_press(self, key, modifiers):
         self.keys_held.add(key)
 
@@ -301,8 +292,6 @@ class DroneSimWindow(arcade.Window):
             step = PAN_SPEED * delta_time / self.camera.zoom
             self._pan_camera(-dx * step, -dy * step)
 
-    # ---- input: mouse (wheel zoom, drag pan) ---------------------------------
-
     def on_mouse_press(self, x, y, button, modifiers):
         if button == arcade.MOUSE_BUTTON_LEFT:
             self._dragging = True
@@ -313,9 +302,7 @@ class DroneSimWindow(arcade.Window):
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         if self._dragging:
-            self._pan_camera(dx / self.camera.zoom, dy / self.camera.zoom)
-
-    # ---- window resize -------------------------------------------------------
+            self._pan_camera(dx, dy)
 
     def on_resize(self, width, height):
         super().on_resize(width, height)
@@ -324,6 +311,3 @@ class DroneSimWindow(arcade.Window):
         self._fit_view()
 
 
-def run_display(graph, start, end, paths, nb_drones):
-    DroneSimWindow(graph, start, end, paths, nb_drones)
-    arcade.run()
