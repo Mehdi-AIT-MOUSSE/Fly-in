@@ -4,16 +4,22 @@ from src.graph import Graph
 from src.similation import Simulation
 from src.display import DroneSimWindow
 import arcade
+import sys
 
 
 class Main:
-    def __init__(self, path: str=None) -> None:
+    '''Main class to run the drone simulation with a chosen map.'''
+    path: str
+
+    def __init__(self, path: str | None = None) -> None:
+        """Initialize the main simulation with a map path."""
         if path:
             self.path = path
         else:
             self.path = self.menu()
 
-    def menu(self):
+    def menu(self) -> str:
+        '''Display a menu for the user to choose a map file.'''
         maps = [
             "maps/easy/01_linear_path.txt",
             "maps/easy/02_simple_fork.txt",
@@ -39,9 +45,11 @@ class Main:
 
         return maps[choice - 1]
 
-    def run(self):
+    def run(self) -> None:
+        """Run the simulation with the selected map."""
         try:
             p = Parse(self.path)
+            nb_drones = p.nb_drones
             zones = p.get_zones()
             connections = p.get_connection()
         except ParseError as error:
@@ -58,11 +66,17 @@ class Main:
             print(f"\033[31m{error}\033[0m")
             exit()
         try:
-            simulation = Simulation(graph, paths, nb_drones=start.max_drones)
+            simulation = Simulation(graph, paths, nb_drones)
             simulation.creat_drones(start_zone=start)
 
-            DroneSimWindow(graph, start, end, paths, nb_drones=start.max_drones)
-            arcade.run()    
+            DroneSimWindow(
+                graph,
+                start,
+                end,
+                paths,
+                nb_drones,
+            )
+            arcade.run()
         except SimulationError as error:
             print(f"\033[31m{error}\033[0m")
             exit()
@@ -71,7 +85,9 @@ class Main:
 if __name__ == "__main__":
     try:
         # file_path = "maps/easy/02_simple_fork.txt"
-        main = Main()
+
+        file_path = sys.argv[1] if len(sys.argv) > 1 else None
+        main = Main(file_path)
         main.run()
 
     except (Exception, KeyboardInterrupt):
