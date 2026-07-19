@@ -2,60 +2,77 @@ from src.models import ParseError, GraphError, SimulationError
 from src.parsing import Parse
 from src.graph import Graph
 from src.similation import Simulation
-from src.display import run_display
+from src.display import DroneSimWindow
+import arcade
 
 
-def main(path: str) -> None:
-    try:
-        p = Parse(path)
-        zones = p.get_zones()
-        connections = p.get_connection()
-    except ParseError as error:
-        print(error)
-        return
+class Main:
+    def __init__(self, path: str=None) -> None:
+        if path:
+            self.path = path
+        else:
+            self.path = self.menu()
 
-    graph = Graph(zones, connections)
+    def menu(self):
+        maps = [
+            "maps/easy/01_linear_path.txt",
+            "maps/easy/02_simple_fork.txt",
+            "maps/easy/03_basic_capacity.txt",
+            "maps/medium/01_dead_end_trap.txt",
+            "maps/medium/02_circular_loop.txt",
+            "maps/medium/03_priority_puzzle.txt",
+            "maps/hard/01_maze_nightmare.txt",
+            "maps/hard/02_capacity_hell.txt",
+            "maps/hard/03_ultimate_challenge.txt",
+            "maps/challenger/01_the_impossible_dream.txt"
+        ]
 
-    start = next(z for z in zones.values() if z.is_start)
-    end = next(z for z in zones.values() if z.is_end)
+        for i, path in enumerate(maps, start=1):
+            print(f"{i}. {path}")
 
-    try:
-        paths = graph.shortest_paths(start, end, K=2)
-    except GraphError as error:
-        print(error)
-        return
+        try:
+            choice = int(input("Choose a map: "))
+            if not (1 <= choice <= len(maps)):
+                raise ValueError
+        except ValueError:
+            choice = 1
 
-    try:
-        simulation = Simulation(graph, paths, nb_drones=start.max_drones)
-        simulation.creat_drones(start_zone=start)
+        return maps[choice - 1]
 
-        run_display(graph, start, end, paths, nb_drones=start.max_drones)
-    except SimulationError as error:
-        print(error)
-        return
+    def run(self):
+        try:
+            p = Parse(self.path)
+            zones = p.get_zones()
+            connections = p.get_connection()
+        except ParseError as error:
+            print(f"\033[31m{error}\033[0m")
+            exit()
+        graph = Graph(zones, connections)
+
+        start = next(z for z in zones.values() if z.is_start)
+        end = next(z for z in zones.values() if z.is_end)
+
+        try:
+            paths = graph.shortest_paths(start, end, K=2)
+        except GraphError as error:
+            print(f"\033[31m{error}\033[0m")
+            exit()
+        try:
+            simulation = Simulation(graph, paths, nb_drones=start.max_drones)
+            simulation.creat_drones(start_zone=start)
+
+            DroneSimWindow(graph, start, end, paths, nb_drones=start.max_drones)
+            arcade.run()    
+        except SimulationError as error:
+            print(f"\033[31m{error}\033[0m")
+            exit()
 
 
 if __name__ == "__main__":
-    # file_path = "maps/easy/02_simple_fork.txt"
-    file_path = "maps/challenger/01_the_impossible_dream.txt"
-    # file_path = "maps/medium/02_circular_loop.txt"
-    # file_path = "maps/easy/01_linear_path.txt"
+    try:
+        # file_path = "maps/easy/02_simple_fork.txt"
+        main = Main()
+        main.run()
 
-    main(file_path)
-
-
-# Maps
-# # easy
-# file_path = "maps/easy/01_linear_path.txt"
-# file_path = "maps/easy/02_simple_fork.txt"
-# file_path = "maps/easy/03_basic_capacity.txt"
-
-# # medium
-# file_path = "maps/medium/01_dead_end_trap.txt"
-# file_path = "maps/medium/02_circular_loop.txt"
-# file_path = "maps/medium/03_priority_puzzle.txt"
-
-# # hard
-# file_path = "maps/hard/01_maze_nightmare.txt"
-# file_path = "maps/hard/02_capacity_hell.txt"
-# file_path = "maps/hard/03_ultimate_challenge.txt"
+    except (Exception, KeyboardInterrupt):
+        exit()
