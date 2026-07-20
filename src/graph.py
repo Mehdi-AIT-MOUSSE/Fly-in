@@ -83,6 +83,21 @@ class Graph:
         raise GraphError(
             f"No connection found between '{zone1_name}' and '{zone2_name}'.")
 
+    def bfs_disconnected_graph(self, start: Zone) -> None:
+        qeue = [start]
+        visited = {start}
+
+        while qeue:
+            cur_zone = qeue.pop(0)
+
+            for neaber, connection in self.adj[cur_zone.name]:
+                if neaber not in visited:
+                    qeue.append(neaber)
+                    visited.add(neaber)
+
+        if len(visited) != len(self.zones):
+            raise GraphError("Disconnected Graph")
+
     def __repr__(self) -> str:
         """Return a readable adjacency-list representation."""
         lines = ["Graph adjacency list:"]

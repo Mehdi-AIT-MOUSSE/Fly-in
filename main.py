@@ -61,6 +61,7 @@ class Main:
         end = next(z for z in zones.values() if z.is_end)
 
         try:
+            graph.bfs_disconnected_graph(start)
             paths = graph.shortest_paths(start, end, K=2)
         except GraphError as error:
             print(f"\033[31m{error}\033[0m")
