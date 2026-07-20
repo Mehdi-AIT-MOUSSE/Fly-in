@@ -1,8 +1,5 @@
-
 MAIN = main.py
-MAP  = maps/easy/02_simple_fork.txt
- 
- 
+
 run:
 	uv run python $(MAIN) $(MAP)
  
