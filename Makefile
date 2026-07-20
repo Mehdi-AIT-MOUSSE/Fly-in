@@ -14,7 +14,7 @@ install:
 	uv sync
  
 debug:
-	uv run python -m $(MAIN) $(MAP)
+	uv run python -m pdb $(MAIN) $(MAP)
  
 clean:
 	find src/ -type d -name "__pycache__" -exec rm -rf {} +
