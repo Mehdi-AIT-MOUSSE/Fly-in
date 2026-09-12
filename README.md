@@ -1,8 +1,9 @@
 *This project has been created as part of the 42 curriculum by mait-mou.*
 
 # Fly-in — Drone Fleet Routing Simulation
-
-<video controls src="Fly_In_vedio.mp4" title="Title"></video>
+<video controls width="100%" >
+  <source src="./Fly_In_vedio.mp4" type="video/mp4" style="margin: 0 auto;">
+</video>
 
 ## Description
 
